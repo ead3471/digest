@@ -1,299 +1,108 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from ..models.users import Student, Teacher
-from ..models.education import Course
-from ..models.structure import Group, Department, Faculty
 from ..database import get_db
 from sqlalchemy.orm import Session
-from ..schemas.users_schemas import (
-    CreateStudentSchema,
-    CreateTeacherSchema,
-    GetStudentSchema,
-    GetTeacherSchema,
-    PatchStudentSchema,
-    PatchTeacherSchema,
-    PutTeacherSchema,
+from ..schemas.users_schemas import UserBaseSchema
+from ..schemas.posts_schemas import (
+    SubscriptionReadSchema,
+    SubscriptionWriteSchema,
+    DigestReadSchema,
+    SourceReadSchema,
+    SourceWriteSchema,
 )
+from ..models.users import User
 from .core import get_object_or_404
+from ..models.posts import Subscription, Tag, Source, Post, Digest
+from typing import Iterable
+from datetime import datetime
 
 router = APIRouter()
 
 
-@router.post(
-    "/students",
-    response_model=GetStudentSchema,
-    status_code=201,
-    description="Creates student from the given data",
-)
-def create_student(
-    student_data: CreateStudentSchema, db: Session = Depends(get_db)
-):
-    if (
-        db.query(Student)
-        .filter_by(passport_id=student_data.passport_id)
-        .first()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User with the same passport ID already exists",
-        )
-
-    if student_data.group_id is not None:
-        get_object_or_404(db, Group, student_data.group_id)
-
-    new_student = Student(**student_data.dict())
-
-    db.add(new_student)
-    db.commit()
-    return new_student
-
-
 @router.get(
-    "/students/{student_id:int}",
+    "/user",
+    response_model=list[UserBaseSchema],
+    response_description="List of users",
     status_code=status.HTTP_200_OK,
-    response_model=GetStudentSchema,
-    description="Return data of specifed student",
+    description="Get users list",
 )
-def get_student(student_id: int, db: Session = Depends(get_db)):
-    student = get_object_or_404(db, Student, student_id)
-    return student
-
-
-@router.get(
-    "/students",
-    status_code=status.HTTP_200_OK,
-    response_model=list[GetStudentSchema],
-    description="Get list of all students",
-)
-def get_students(db: Session = Depends(get_db)):
-    students = db.query(Student).all()
-    return students
-
-
-@router.patch(
-    "/students/{student_id:int}",
-    status_code=status.HTTP_200_OK,
-    response_model=GetStudentSchema,
-    description="Patch student with specified data",
-)
-def patch_student(
-    student_id: int,
-    student_data: PatchStudentSchema,
-    db: Session = Depends(get_db),
-):
-    student: Student = get_object_or_404(db, Student, student_id)
-
-    for key, value in student_data:
-        if hasattr(student, key) and value:
-            setattr(student, key, value)
-    db.commit()
-    return student
-
-
-@router.put(
-    "/students/{student_id:int}",
-    status_code=status.HTTP_200_OK,
-    response_model=GetStudentSchema,
-    description="Replaces all student data with the given",
-)
-def put_student(
-    student_id: int,
-    student_data: PatchStudentSchema,
-    db: Session = Depends(get_db),
-):
-    student: Student = get_object_or_404(db, Student, student_id)
-
-    for key, value in student_data:
-        if hasattr(student, key) and value:
-            setattr(student, key, value)
-
-    db.commit()
-    return student
-
-
-@router.delete(
-    "/students/{student_id:int}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    description="Delete the specifed student",
-)
-def delete_student(student_id: int, db: Session = Depends(get_db)):
-    student: Student = get_object_or_404(db, Student, student_id)
-
-    db.delete(student)
-    db.commit()
-    return {"message": "Student deleted successfully"}
+def get_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return users
 
 
 @router.post(
-    "/teachers",
+    "/user/{user_id:int}/subscription",
+    response_model=SubscriptionReadSchema,
     status_code=status.HTTP_201_CREATED,
-    response_model=GetTeacherSchema,
-    description="Create teacher with specified data",
+    description="Add user subscription",
 )
-def create_teacher(
-    teacher_data: CreateTeacherSchema, db: Session = Depends(get_db)
+def create_subscription(
+    user_id: int,
+    subscription_data: SubscriptionWriteSchema,
+    db: Session = Depends(get_db),
 ):
-    if (
-        db.query(Teacher)
-        .filter_by(passport_id=teacher_data.passport_id)
-        .first()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Teacher with same passport id already exist",
-        )
-
-    teacher_dict = teacher_data.dict()
-    courses_ids: list = teacher_dict.pop("courses")
-
-    if courses_ids is not None:
-        teacher_faculty: Faculty = get_object_or_404(
-            db, Department, teacher_data.department_id
-        ).faculty
-        print(teacher_faculty.name)
-        courses = (
-            db.query(Course)
-            .filter(Course.id.in_(courses_ids))
-            .filter(Course.faculty == teacher_faculty)
-            .all()
-        )
-        if len(courses_ids) != len(courses):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "One of the given courses are not exists",
-                    " or not on the teacher department",
-                ),
-            )
-
-        teacher_dict["courses"] = courses
-
-    new_teacher = Teacher(**teacher_dict)
-
-    db.add(new_teacher)
+    user: User = get_object_or_404(db, User, user_id)
+    data_dict = subscription_data.dict()
+    tags_ids = data_dict.pop("tags")
+    source_id = data_dict.pop("source")
+    source: Source = get_object_or_404(db, Source, source_id)
+    new_subscription = Subscription(
+        user_id=user.id, source_id=source.id, **data_dict
+    )
+    for tag_id in tags_ids:
+        tag = get_object_or_404(db, Tag, tag_id)
+        new_subscription.tags.append(tag)
+    db.add(new_subscription)
     db.commit()
-    return new_teacher
+    return new_subscription
 
 
 @router.get(
-    "/teachers/{teacher_id:int}",
+    "/user/{user_id:int}/subscription",
+    response_model=list[SubscriptionReadSchema],
     status_code=status.HTTP_200_OK,
-    response_model=GetTeacherSchema,
-    description="Return data of specifed teacher",
+    description="Get list of user subscriptions",
 )
-def get_teacher(teacher_id: int, db: Session = Depends(get_db)):
-    teacher: Teacher = get_object_or_404(db, Teacher, teacher_id)
-    return teacher
+def get_subscriptions(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    user: User = get_object_or_404(db, User, user_id)
+    return user.subscriptions
 
 
 @router.get(
-    "/teachers",
-    status_code=status.HTTP_200_OK,
-    response_model=list[GetTeacherSchema],
-    description="Get list of all teachers",
+    "/user/{user_id:int}/digest",
+    response_model=DigestReadSchema,
+    status_code=status.HTTP_201_CREATED,
+    description="Generate user digest",
 )
-def get_teachers(db: Session = Depends(get_db)):
-    teachers = db.query(Teacher).all()
-    return teachers
-
-
-@router.patch(
-    "/teachers/{teacher_id:int}",
-    status_code=status.HTTP_200_OK,
-    response_model=GetTeacherSchema,
-    description="Patch teacher with specified data",
-)
-def patch_teacher(
-    teacher_id: int,
-    teacher_data: PatchTeacherSchema,
+def generate_digest(
+    user_id: int,
     db: Session = Depends(get_db),
 ):
-    teacher: Teacher = get_object_or_404(db, Teacher, teacher_id)
+    user: User = get_object_or_404(db, User, user_id)
 
-    new_teacher_faculty: Faculty = (
-        teacher.department.faculty
-        if teacher_data.department_id is None
-        else get_object_or_404(
-            db, Department, teacher_data.department_id
-        ).faculty
-    )
+    user_subscriptions: Iterable[Subscription] = user.subscriptions
 
-    teacher_data_dict = teacher_data.dict()
-
-    courses = teacher_data_dict.pop("courses")
-
-    if (
-        new_teacher_faculty != teacher.department.faculty
-        or courses is not None
-    ):
-        teacher.courses.clear()
-
-    if courses is not None:
-        new_courses = (
-            db.query(Course)
-            .filter(Course.id.in_(teacher_data.courses))
-            .filter(Course.faculty == new_teacher_faculty)
+    new_digest = Digest(user_id=user.id, created=datetime.now())
+    db.add(new_digest)
+    for subscription in user_subscriptions:
+        posts_for_subscription = (
+            db.query(Post)
+            .filter(
+                Post.score >= subscription.minimum_score,
+                Post.source == subscription.source,
+            )
             .all()
         )
-        if len(new_courses) != len(courses):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Given corses are not presented "
-                    "on the {new_teacher_faculty}"
-                ),
-            )
-
-        teacher.courses = new_courses
-
-    for key, value in teacher_data_dict.items():
-        if hasattr(teacher, key) and value:
-            setattr(teacher, key, value)
+        subscription_tag_ids = {tag.id for tag in subscription.tags}
+        if subscription_tag_ids:
+            subscription_tags_set = set(subscription.tags)
+            for post in posts_for_subscription:
+                post_tag_ids = {tag.id for tag in post.tags}
+                if not post_tag_ids.isdisjoint(subscription_tags_set):
+                    new_digest.posts.add(post)
 
     db.commit()
-    return teacher
-
-
-@router.put(
-    "/teachers/{teacher_id:int}",
-    status_code=status.HTTP_200_OK,
-    response_model=GetTeacherSchema,
-    description="Patch teacher with specified data",
-)
-def put_teacher(
-    teacher_id: int,
-    teacher_data: PutTeacherSchema,
-    db: Session = Depends(get_db),
-):
-    teacher: Teacher = get_object_or_404(db, Teacher, teacher_id)
-
-    new_teacher_faculty = get_object_or_404(
-        db, Department, teacher_data.department_id
-    ).faculty
-
-    teacher_data_dict = teacher_data.dict()
-    courses = teacher_data_dict.pop("courses")
-    teacher.courses.clear()
-
-    new_courses = (
-        db.query(Course)
-        .filter(Course.id.in_(teacher_data.courses))
-        .filter(Course.faculty == new_teacher_faculty)
-        .all()
-    )
-    if len(new_courses) != len(courses):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Given corses are not presented "
-                "on the {new_teacher_faculty}"
-            ),
-        )
-
-    teacher.courses = new_courses
-
-    for key, value in teacher_data_dict.items():
-        if hasattr(teacher, key) and value:
-            setattr(teacher, key, value)
-
-    db.commit()
-    return teacher
+    return new_digest

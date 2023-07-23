@@ -16,8 +16,8 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     digests = relationship(
-        Digest, back_populates="user", cascade="all, delete-orphan"
+        Digest, back_populates="user", cascade="all, delete"
     )
     subscriptions = relationship(
-        Subscription, back_populates="user", cascade="all, delete-orphan"
+        Subscription, back_populates="user", cascade="all, delete"
     )

@@ -7,7 +7,11 @@ from sqlalchemy import (
     String,
     DateTime,
     func,
+    CheckConstraint,
+    UniqueConstraint,
 )
+
+import datetime
 
 from ..database import Base
 from sqlalchemy.orm import relationship
@@ -28,7 +32,7 @@ posts_digests = Table(
     Many to many post-tags table
 """
 posts_tags = Table(
-    "post_tags",
+    "posts_tags",
     Base.metadata,
     Column("post_id", Integer, ForeignKey("posts.id")),
     Column("tag_id", Integer, ForeignKey("tags.id")),
@@ -51,9 +55,17 @@ class Tag(Base):
     __tablename__ = "tags"
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
-    posts = relationship("Post", back_populates="tags", cascade="all, delete")
+    posts = relationship(
+        "Post",
+        secondary=posts_tags,
+        back_populates="tags",
+        cascade="all, delete",
+    )
     subscriptions = relationship(
-        "Subscription", back_populates="tags", cascade="all, delete"
+        "Subscription",
+        secondary=subscriptions_tags,
+        back_populates="tags",
+        cascade="all, delete",
     )
 
     def __repr__(self):
@@ -67,6 +79,9 @@ class Source(Base):
     posts = relationship(
         "Post", back_populates="source", cascade="all, delete"
     )
+    subscriptions = relationship(
+        "Subscription", back_populates="source", cascade="all, delete"
+    )
 
     def __repr__(self):
         return f"{self.id}:{self.name}"
@@ -75,14 +90,17 @@ class Source(Base):
 class Post(Base):
     __tablename__ = "posts"
     id = Column(Integer, primary_key=True)
-    text = Column(Text, nullable=False, unique=True)
-    score = Column(Integer)
+    text = Column(Text, nullable=False)
+    score = Column(Integer, CheckConstraint("age BETWEEN 0 AND 150"))
     digests = relationship(
-        "Digest", secondary=posts_digests, back_populates="digests"
+        "Digest", secondary=posts_digests, back_populates="posts"
     )
+    tags = relationship("Tag", secondary=posts_tags, back_populates="posts")
     source_id = Column(Integer, ForeignKey("sources.id"))
     source = relationship(Source, back_populates="posts")
-    created = Column(DateTime, default=func.now(), nullable=False)
+    created = Column(
+        DateTime, server_default=datetime.datetime.utcnow().isoformat()
+    )
 
 
 class Digest(Base):
@@ -96,8 +114,8 @@ class Digest(Base):
         back_populates="digests",
         cascade="all, delete",
     )
-    tags = relationship(
-        Tag, secondary=subscriptions_tags, back_populates="digests"
+    created = Column(
+        DateTime, server_default=datetime.datetime.utcnow().isoformat()
     )
 
 
@@ -105,8 +123,13 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="digests")
+    user = relationship("User", back_populates="subscriptions")
     minimum_score = Column(Integer, default=0)
+    source_id = Column(Integer, ForeignKey("sources.id"))
+    source = relationship(Source, back_populates="subscriptions")
     tags = relationship(
         Tag, secondary=subscriptions_tags, back_populates="subscriptions"
+    )
+    __table_args__ = (
+        UniqueConstraint("user_id", "source_id", name="uq_user_source"),
     )

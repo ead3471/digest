@@ -2,28 +2,19 @@ from fastapi.testclient import TestClient
 from ..main import app
 from pytest import fixture
 from sqlalchemy.orm.session import Session
-from app.models.users import Student, Teacher
 from datetime import date
 from app.tests.conftest import testing_session
+from models.users import User
+from models.posts import Post, Source, Tag, Subscription, Digest
 
 client = TestClient(app)
 
 
 @fixture()
-def student_with_group(testing_session: Session):
-    student = Student()
-    student.name = "Иван"
-    student.middle_name = "Иванович"
-    student.last_name = "Иванов"
-    student.passport_id = "1234 123456"
-    student.birthdate = date(year=1990, day=1, month=1)
-    testing_session.add(student)
-    testing_session.commit()
-    print("student created", student)
-    yield student
-    print("delete ", student)
-    testing_session.delete(student)
-    testing_session.commit()
+def posts(testing_session: Session):
+    tags = [Tag("1"), Tag("2"), Tag("3")]
+    for tag in tags:
+        testing_session.add(tag)
 
 
 @fixture()
