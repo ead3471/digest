@@ -52,3 +52,4 @@ venv
 __pycache__
 .vscode
 .db
+test.db
