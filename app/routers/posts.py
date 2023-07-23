@@ -3,7 +3,11 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.posts import Post, Source, Tag
-from ..schemas.posts_schemas import PostCreateSchema, PostReadSchema
+from ..schemas.posts_schemas import (
+    PostCreateSchema,
+    PostReadSchema,
+    TagReadSchema,
+)
 from .core import get_object_or_404
 
 router = APIRouter()
@@ -38,3 +42,14 @@ def create_post(post_data: PostCreateSchema, db: Session = Depends(get_db)):
     db.add(new_post)
     db.commit()
     return new_post
+
+
+@router.get(
+    "/tag",
+    response_model=list[TagReadSchema],
+    status_code=status.HTTP_200_OK,
+    description="Return all registered tags",
+)
+def get_tags(db: Session = Depends(get_db)):
+    tags = db.query(Tag).all()
+    return tags

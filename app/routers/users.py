@@ -12,10 +12,26 @@ from ..schemas.posts_schemas import (
     SubscriptionReadSchema,
     SubscriptionWriteSchema,
 )
-from ..schemas.users_schemas import UserBaseSchema
+from ..schemas.users_schemas import UserBaseSchema, UserWriteSchema
 from .core import get_object_or_404
 
 router = APIRouter()
+
+
+@router.post(
+    "/user/",
+    response_model=UserWriteSchema,
+    status_code=status.HTTP_201_CREATED,
+    description="Add new user",
+)
+def create_user(
+    user_data: UserWriteSchema,
+    db: Session = Depends(get_db),
+):
+    new_user = User(**user_data.dict())
+    db.add(new_user)
+    db.commit()
+    return new_user
 
 
 @router.get(

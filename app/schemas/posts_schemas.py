@@ -10,6 +10,7 @@ class ModelId(BaseModel):
 
 
 class TagReadSchema(BaseModel):
+    id: int = Field(description="Tag id")
     name: str = Field(description="Tag name")
 
     class Config:

@@ -7,3 +7,10 @@ class UserBaseSchema(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class UserWriteSchema(BaseModel):
+    name: str = Field(description="User name", max_length=16)
+
+    class Config:
+        orm_mode = True
