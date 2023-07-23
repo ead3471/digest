@@ -9,20 +9,22 @@
 Протестировать развернутый проект можно [по этой ссылке](http://193.233.23.68:8080/docs)
 #### 1. Клонировать проект на локальный компьютер или удаленный сервер:
 
-    ```git clone git@github.com:ead3471/digest.git```
+    git clone git@github.com:ead3471/digest.git
 
 #### 2. Установить Docker и docker-compose если необходимо
 #### 3. Изменить (при необходимости) файл .env в корне проекта:
 
-    ``` cd digest```
-    ```touch .env ```
+    cd digest
+    touch .env
+
 #### 4. Запустить проект:
 
-    ``` docker-compose up ```
+    docker-compose up
+
 #### 5. Выполнить создание таблиц баз данных:
 
-    ```docker-compose exec api sh```
-    ``` alembic upgrade head ```
+    docker-compose exec api sh
+    alembic upgrade head
 
 ## Требования к микросервису
 
