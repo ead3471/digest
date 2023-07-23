@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
 from ..database import get_db
-from sqlalchemy.orm import Session
-from ..schemas.posts_schemas import PostReadSchema, PostCreateSchema
+from ..models.posts import Post, Source, Tag
+from ..schemas.posts_schemas import PostCreateSchema, PostReadSchema
 from .core import get_object_or_404
-from ..models.posts import Post, Tag, Source
-
 
 router = APIRouter()
 
@@ -14,7 +13,7 @@ router = APIRouter()
     "/post",
     response_model=list[PostReadSchema],
     status_code=status.HTTP_200_OK,
-    description="Get posts list",
+    description="Return all registered posts",
 )
 def get_posts(db: Session = Depends(get_db)):
     posts = db.query(Post).all()

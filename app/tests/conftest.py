@@ -1,12 +1,15 @@
+from typing import Generator
+
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-from ..database import Base
-from ..main import app
-from ..database import get_db
 from sqlalchemy.orm.session import Session
-from typing import Generator
+
+from app.models.users import Base
+
+from ..database import get_db
+from ..main import app
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
@@ -21,6 +24,7 @@ def testing_session() -> Generator[Session, None, None]:
         autocommit=False, autoflush=False, bind=engine
     )
 
+    # Recreate all table data
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -37,3 +41,10 @@ def testing_session() -> Generator[Session, None, None]:
     yield session
 
     session.close()
+
+
+@pytest.fixture(scope="module")
+def test_app():
+    client = TestClient(app)
+    yield client
+    client.close()

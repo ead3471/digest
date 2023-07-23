@@ -1,21 +1,10 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    ForeignKey,
-    Text,
-    Table,
-    String,
-    DateTime,
-    func,
-    CheckConstraint,
-    UniqueConstraint,
-)
-
 import datetime
 
-from ..database import Base
+from sqlalchemy import (CheckConstraint, Column, DateTime, ForeignKey, Integer,
+                        String, Table, Text, UniqueConstraint)
 from sqlalchemy.orm import relationship
 
+from ..database import Base
 
 """
     Many to many post-digest table
@@ -25,6 +14,7 @@ posts_digests = Table(
     Base.metadata,
     Column("post_id", Integer, ForeignKey("posts.id")),
     Column("digest_id", Integer, ForeignKey("digests.id")),
+    UniqueConstraint("post_id", "digest_id", name="uq_posts_digests"),
 )
 
 
@@ -36,6 +26,7 @@ posts_tags = Table(
     Base.metadata,
     Column("post_id", Integer, ForeignKey("posts.id")),
     Column("tag_id", Integer, ForeignKey("tags.id")),
+    UniqueConstraint("post_id", "tag_id", name="uq_posts_tags"),
 )
 
 """
@@ -46,6 +37,9 @@ subscriptions_tags = Table(
     Base.metadata,
     Column("subscription_id", Integer, ForeignKey("subscriptions.id")),
     Column("tag_id", Integer, ForeignKey("tags.id")),
+    UniqueConstraint(
+        "subscription_id", "tag_id", name="uq_subscriptions_tags"
+    ),
 )
 
 
@@ -90,17 +84,15 @@ class Source(Base):
 class Post(Base):
     __tablename__ = "posts"
     id = Column(Integer, primary_key=True)
-    text = Column(Text, nullable=False)
-    score = Column(Integer, CheckConstraint("age BETWEEN 0 AND 150"))
+    text = Column(Text)
+    score = Column(Integer, CheckConstraint("score BETWEEN 0 AND 10"))
     digests = relationship(
         "Digest", secondary=posts_digests, back_populates="posts"
     )
     tags = relationship("Tag", secondary=posts_tags, back_populates="posts")
     source_id = Column(Integer, ForeignKey("sources.id"))
     source = relationship(Source, back_populates="posts")
-    created = Column(
-        DateTime, server_default=datetime.datetime.utcnow().isoformat()
-    )
+    created = Column(DateTime)
 
 
 class Digest(Base):

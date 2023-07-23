@@ -1,19 +1,19 @@
-from fastapi import APIRouter, Depends, status, HTTPException
-from ..database import get_db
+from datetime import datetime
+from typing import Iterable
+
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from ..schemas.users_schemas import UserBaseSchema
+
+from ..database import get_db
+from ..models.posts import Digest, Post, Source, Subscription, Tag
+from ..models.users import User
 from ..schemas.posts_schemas import (
+    DigestReadSchema,
     SubscriptionReadSchema,
     SubscriptionWriteSchema,
-    DigestReadSchema,
-    SourceReadSchema,
-    SourceWriteSchema,
 )
-from ..models.users import User
+from ..schemas.users_schemas import UserBaseSchema
 from .core import get_object_or_404
-from ..models.posts import Subscription, Tag, Source, Post, Digest
-from typing import Iterable
-from datetime import datetime
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ router = APIRouter()
     response_model=list[UserBaseSchema],
     response_description="List of users",
     status_code=status.HTTP_200_OK,
-    description="Get users list",
+    description="Return the list of all registered users",
 )
 def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
@@ -61,7 +61,7 @@ def create_subscription(
     "/user/{user_id:int}/subscription",
     response_model=list[SubscriptionReadSchema],
     status_code=status.HTTP_200_OK,
-    description="Get list of user subscriptions",
+    description="Return list of subscriptions of user with given user_id",
 )
 def get_subscriptions(
     user_id: int,
@@ -75,7 +75,7 @@ def get_subscriptions(
     "/user/{user_id:int}/digest",
     response_model=DigestReadSchema,
     status_code=status.HTTP_201_CREATED,
-    description="Generate user digest",
+    description="Generate digest for user with given user_id",
 )
 def generate_digest(
     user_id: int,
@@ -98,11 +98,10 @@ def generate_digest(
         )
         subscription_tag_ids = {tag.id for tag in subscription.tags}
         if subscription_tag_ids:
-            subscription_tags_set = set(subscription.tags)
             for post in posts_for_subscription:
                 post_tag_ids = {tag.id for tag in post.tags}
-                if not post_tag_ids.isdisjoint(subscription_tags_set):
-                    new_digest.posts.add(post)
+                if not post_tag_ids.isdisjoint(subscription_tag_ids):
+                    new_digest.posts.append(post)
 
     db.commit()
     return new_digest

@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from .users_schemas import UserBaseSchema
 from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+from .users_schemas import UserBaseSchema
 
 
 class ModelId(BaseModel):
@@ -29,6 +31,7 @@ class SourceWriteSchema(BaseModel):
 
 
 class PostReadSchema(BaseModel):
+    id: int = Field(description="Post id")
     text: str = Field(description="Post text")
     score: int = Field(description="Post score")
     source: SourceReadSchema = Field(description="Post source")
