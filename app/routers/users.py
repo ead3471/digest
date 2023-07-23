@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Iterable
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -28,6 +28,12 @@ def create_user(
     user_data: UserWriteSchema,
     db: Session = Depends(get_db),
 ):
+    existing_user = db.query(User).filter(User.name == user_data.name).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with name = {user_data.name} already registered",
+        )
     new_user = User(**user_data.dict())
     db.add(new_user)
     db.commit()
