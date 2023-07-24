@@ -18,6 +18,7 @@ class TagReadSchema(BaseModel):
 
 
 class SourceReadSchema(BaseModel):
+    id: int = Field(description="Source id")
     name: str = Field(description="Source name")
 
     class Config:
@@ -25,7 +26,7 @@ class SourceReadSchema(BaseModel):
 
 
 class SourceWriteSchema(BaseModel):
-    id: str = Field(description="Source id")
+    name: str = Field(description="Source name")
 
     class Config:
         orm_mode = True

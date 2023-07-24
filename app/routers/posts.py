@@ -7,6 +7,8 @@ from ..schemas.posts_schemas import (
     PostCreateSchema,
     PostReadSchema,
     TagReadSchema,
+    SourceReadSchema,
+    SourceWriteSchema,
 )
 from .core import get_object_or_404
 
@@ -53,3 +55,29 @@ def create_post(post_data: PostCreateSchema, db: Session = Depends(get_db)):
 def get_tags(db: Session = Depends(get_db)):
     tags = db.query(Tag).all()
     return tags
+
+
+@router.post(
+    "/source",
+    response_model=SourceReadSchema,
+    status_code=status.HTTP_201_CREATED,
+    description="Create new Source",
+)
+def create_source(
+    source_data: SourceWriteSchema, db: Session = Depends(get_db)
+):
+    new_source = Source(**source_data.dict())
+    db.add(new_source)
+    db.commit()
+    return new_source
+
+
+@router.get(
+    "/source",
+    response_model=list[SourceReadSchema],
+    status_code=status.HTTP_200_OK,
+    description="Return all registered sources",
+)
+def get_sources(db: Session = Depends(get_db)):
+    sources = db.query(Source).all()
+    return sources
