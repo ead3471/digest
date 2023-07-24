@@ -14,7 +14,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: fastapi.Dockerfile
     restart: always
     ports:
      - "8080:8080"
@@ -22,6 +22,32 @@ services:
       - postgres
     env_file:
       - ./.env 
+  
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      # Expose the port for the worker to add/get tasks
+      - 5672:5672
+      # OPTIONAL: Expose the GUI port
+      - 15672:15672
+
+  celery_worker:
+  build:
+    context: .
+    dockerfile: celery.Dockerfile
+  environment:
+    - rabbitmq_uri: amqp://rabbitmq:5672
+  depends_on:
+    - rabbitmq
+    - api
+
+  # flower:
+  #   image: mher/flower:0.9.7
+  #   command: ['flower', '--broker=redis://redis:6379', '--port=5555']
+  #   ports:
+  #     - 5557:5555
+  #   depends_on:
+  #     - redis
 
 
 volumes:
